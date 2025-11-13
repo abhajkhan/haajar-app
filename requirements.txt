@@ -1,0 +1,8 @@
+ttkbootstrap
+sqlalchemy
+mysql-connector-python
+opencv-python
+pyzbar
+python-dotenv
+pillow
+pyinstaller
