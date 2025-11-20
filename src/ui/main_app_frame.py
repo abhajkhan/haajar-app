@@ -12,7 +12,7 @@ class MainAppFrame(tb.Frame):
         self.content_area.pack(side="right", expand=True, fill="both")
 
         self.tabs = {
-            "Create Session": CreateSessionTab(self.content_area),
+            "Create Session": CreateSessionTab(self.content_area,subjects=["Python Lab", "DB Lab", "OS Lab"]),
             "View Registry": ViewRegistryTab(self.content_area),
         }
 
