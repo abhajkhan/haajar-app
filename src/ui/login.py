@@ -2,9 +2,9 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 
 class LoginFrame(tb.Frame):
-    def __init__(self, master, switch_to_main, **kw):
+    def __init__(self, master, redirect_to_home, **kw):
         super().__init__(master, **kw)
-        self.switch_to_main = switch_to_main
+        self.redirect_to_home = redirect_to_home
 
         # --- Title ---
         tb.Label(self, text="Department Login", font=("Segoe UI", 18)).pack(pady=20)
@@ -32,4 +32,4 @@ class LoginFrame(tb.Frame):
         pwd = self.password_entry.get().strip()
         print("Email:", email)
         print("Password:", pwd)
-        self.switch_to_main()
+        self.redirect_to_home()
