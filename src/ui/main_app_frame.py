@@ -14,7 +14,7 @@ class MainAppFrame(tb.Frame):
         self.content_area.pack(side="right", expand=True, fill="both")
 
         self.tabs = {
-            TAB_CREATE_SESSION: CreateSessionTab(self.content_area),
+            TAB_CREATE_SESSION: CreateSessionTab(self.content_area,on_create=self._on_session_created),
             TAB_VIEW_REGISTRY: ViewRegistryTab(self.content_area),
             # kiosk_scanner tab created lazily when session is created
         }
