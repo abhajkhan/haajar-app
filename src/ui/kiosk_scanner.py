@@ -131,11 +131,12 @@ class KioskScanner(tb.Frame):
             self.video_label.imgtk = imgtk
             self.video_label.configure(image=imgtk)
 
-            # Convert to grayscale for better detection
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # Invert frame for better detection
+            inverted_frame = cv2.bitwise_not(frame)
             
             # Method 1: pyzbar
-            codes = pyzbar.decode(gray)
+            codes = pyzbar.decode(inverted_frame)
+            print("QR-Codes: ",codes)
             
             # Method 2: cv2 detector (fallback/parallel)
             if not codes:
@@ -251,7 +252,8 @@ class KioskScanner(tb.Frame):
         try:
             student = None
             if payload:
-                student = db.query(StudentModel).filter(StudentModel.roll_no == payload.split(',')[0]).first()
+                payload = payload.split(',')[0]
+                student = db.query(StudentModel).filter(StudentModel.roll_no == payload).first()
             if student is None:
                 student = db.query(StudentModel).filter(
                     (StudentModel.roll_no == payload) |
@@ -293,10 +295,11 @@ class KioskScanner(tb.Frame):
                     msg = f"Checked OUT: {student.name}"
                     self.logger.info(f"Student Checked OUT: {student.name} (ID: {student.id})")
                     color = (255,200,0)  # amber-ish for checkout
-                    color = (255,200,0)  # amber-ish for checkout
                 else:
                     self.logger.warning(f"Student already Checked IN Just Now: {student.name} (ID: {student.id})")
                     #TODO: handle this case!!!
+                    msg = f"Already Checked IN: {student.name}"
+                    color = (0,0,255)
             # success: update overlay and status label (UI thread)
             self._set_overlay(rect=rect, msg=msg, color=color)
             self.video_label.after(0, lambda: self.status.config(text=msg, bootstyle="success"))
