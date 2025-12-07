@@ -137,7 +137,7 @@ class CreateSessionTab(tb.Frame):
         if d is None:
             messagebox.showwarning("Validation", "Enter a valid date (YYYY-MM-DD).")
             return
-        if not (0 <= start_h <= 23 and 0 <= start_m <= 59):
+        if not (datetime.now().hour <= start_h <= 23 and 0 <= start_m <= 59):
             messagebox.showwarning("Validation", "Enter valid start time.")
             return
         if not (start_h <= end_h <= 23 and 0 <= end_m <= 59):

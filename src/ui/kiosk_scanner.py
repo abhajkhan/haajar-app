@@ -50,6 +50,34 @@ class KioskScanner(tb.Frame):
         self.last_overlay = None       # dict with keys: rect, msg, color, ts, ttl
         self.overlay_ttl = 1.5         # seconds to display overlay after a scan
         self.cam_running = True
+        self.checkout_delay = timedelta(minutes=15)
+        self.session_start_time = getattr(self.session_row, 'start_time', None)
+        self.session_end_time = getattr(self.session_row, 'end_time', None)
+        self.session_date = getattr(self.session_row, 'date', None)
+        if self.session_start_time:
+            self.session_start_datetime = datetime.combine(self.session_date,self.session_start_time)
+            self.session_end_datetime = datetime.combine(self.session_date,self.session_end_time)
+        if datetime.now() > self.session_start_datetime + self.checkout_delay:
+            self.is_checkin_time = False
+        else:
+            self.is_checkin_time = True
+
+        # Mode label: shows "Check IN" or "Check OUT"
+        self.mode_var = tb.StringVar(value="Check IN")
+        self.mode_label = tb.Label(self, textvariable=self.mode_var, font=("Segoe UI", 18, "bold"))
+        self.mode_label.pack(pady=(4, 6))
+
+        # Optional: countdown label showing time left until checkout mode
+        self.countdown_var = tb.StringVar(value="")
+        self.countdown_label = tb.Label(self, textvariable=self.countdown_var, font=("Segoe UI", 12))
+        self.countdown_label.pack()
+
+        # compute cutoff datetime once
+        self._compute_cutoff_datetime()
+
+        # start periodic updater (runs every 1 second)
+        self._mode_updater_running = True
+        self._schedule_mode_update()
 
         tb.Label(self, text="Kiosk Scanner", font=("Segoe UI", 16)).pack(pady=8)
         info = tb.Label(self, text=f"Session: {getattr(session_row, 'id', 'N/A')}  Subject: {getattr(getattr(session_row, 'subject', None), 'title', '')}")
@@ -73,13 +101,97 @@ class KioskScanner(tb.Frame):
             command=self._start_or_stop
         )
         self.startstopbtn.pack(side="right")
-        tb.Button(btns, text="Check IN Late", bootstyle="secondary", command=self._late_checkin).pack(side="left")
+        tb.Button(btns, text="Late Check-IN", bootstyle="secondary", command=self._late_checkin).pack(side="left")
 
         # start camera thread
         self._start_camera()
 
+    def _compute_cutoff_datetime(self):
+        """
+        Determine the exact datetime when mode should switch to Check OUT.
+        Uses session_row.date and session_row.start_time if available.
+        Fallback: uses now() + checkout_delay so UI still behaves.
+        """
+        self.cutoff_dt = None
+        try:
+            if self.session_row is not None:
+                # assume session_row.date is a date() and start_time is a time()
+                session_date = getattr(self.session_row, "date", None)
+                session_start_time = getattr(self.session_row, "start_time", None)
+                if session_date and session_start_time:
+                    # combine into a datetime
+                    start_dt = datetime.combine(session_date, session_start_time)
+                    self.cutoff_dt = start_dt + self.checkout_delay
+        except Exception:
+            self.cutoff_dt = None
+
+        if self.cutoff_dt is None:
+            # fallback: set cutoff to now + delay (ensures label will flip after delay)
+            self.cutoff_dt = datetime.now() + self.checkout_delay
+
+    def _schedule_mode_update(self, interval_ms=1000):
+        """Schedule the next update call (uses tkinter.after)"""
+        # keep calling every interval_ms until stopped
+        if not getattr(self, "_mode_updater_running", False):
+            return
+        self.after(interval_ms, self._update_mode)
+
+    def _update_mode(self):
+        """Check current time vs cutoff and update the label and optional countdown."""
+        now = datetime.now()
+        # if now is before cutoff -> still check IN
+        if now < self.cutoff_dt:
+            self.mode_var.set("Check IN")
+            # update countdown: time remaining until checkout window begins
+            remaining = self.cutoff_dt - now
+            # render mm:ss
+            total_seconds = int(remaining.total_seconds())
+            mins, secs = divmod(total_seconds, 60)
+            self.countdown_var.set(f"Switches to Check OUT in {mins:02d}:{secs:02d}")
+        else:
+            # checkout window started -> show Check OUT and clear countdown
+            self.mode_var.set("Check OUT")
+            self.countdown_var.set("")  # hide countdown or show a different message
+
+        # re-schedule next check (1s)
+        self._schedule_mode_update(interval_ms=1000)
+
+    def stop_mode_updater(self):
+        """Call this when closing or switching tabs so after-calls stop."""
+        self._mode_updater_running = False
+
     def _late_checkin(self):
-        messagebox.showinfo("Info", "Late CheckIN placeholder.")
+        now = datetime.now()
+        if now > self.session_end_datetime:
+            self._start_or_stop()
+            messagebox.showerror("","Session Ended!!")
+        elif now > self.session_start_datetime + self.checkout_delay:
+            # create and show modal popup. Provide a callback to save to DB.
+            def on_submit(roll, reason):
+                # example: lookup student by roll, create Registry with a "late" flag or reason
+                db = SessionLocal()
+                try:
+                    student = db.query(StudentModel).filter(StudentModel.roll_no == roll).first()
+                    if not student:
+                        messagebox.showerror("Not Found", f"No student with roll '{roll}'")
+                        return
+                    # create registry entry for late checkin (adjust model names/fields)
+                    from datetime import datetime
+                    reg = RegistryModel(student_id=student.id, session_id=self.session_row.id,
+                                        check_in_time=datetime.now(), late_check_in_reason=reason)
+                    db.add(reg); db.commit()
+                    messagebox.showinfo("Success", f"Late check-in recorded for {student.name}")
+                except Exception as e:
+                    db.rollback()
+                    messagebox.showerror("DB error", str(e))
+                finally:
+                    db.close()
+
+            LateCheckinDialog(self, on_submit=on_submit)
+        else:
+            self._start_or_stop()
+            messagebox.showerror("","You are not Late!!")
+
     
     def _start_or_stop(self):
         if self.cam_running:
@@ -291,17 +403,21 @@ class KioskScanner(tb.Frame):
 
             now_dt = datetime.now()
             if reg is None:
-                # check-in
-                new_reg = RegistryModel(student_id=student.id, session_id=self.session_row.id, check_in_time=now_dt, check_out_time=None)
-                db.add(new_reg)
-                db.commit()
-                db.refresh(new_reg)
-                db.refresh(new_reg)
-                msg = f"Checked IN: {student.name}"
-                self.logger.info(f"Student Checked IN: {student.name} (ID: {student.id})")
-                color = (0,255,0)
+                if self.is_checkin_time:
+                    # check-in
+                    new_reg = RegistryModel(student_id=student.id, session_id=self.session_row.id, check_in_time=now_dt, check_out_time=None)
+                    db.add(new_reg)
+                    db.commit()
+                    db.refresh(new_reg)
+                    db.refresh(new_reg)
+                    msg = f"Checked IN: {student.name}"
+                    self.logger.info(f"Student Checked IN: {student.name} (ID: {student.id})")
+                    color = (0,255,0)
+                else:
+                    self._start_or_stop()
+                    messagebox.showwarning("You are Late!!","You haven't Checked IN till now. Please use the Late Check IN option.")
             else:
-                if now_dt > datetime.combine(datetime.today(), reg.check_in_time) + timedelta(minutes=15):
+                if not self.is_checkin_time:
                 # check-out
                     reg.check_out_time = now_dt
                     db.add(reg)
@@ -313,7 +429,6 @@ class KioskScanner(tb.Frame):
                     color = (255,200,0)  # amber-ish for checkout
                 else:
                     self.logger.warning(f"Student already Checked IN Just Now: {student.name} (ID: {student.id})")
-                    #TODO: handle this case!!!
                     msg = f"Already Checked IN: {student.name}"
                     color = (0,0,255)
             # success: update overlay and status label (UI thread)
@@ -347,3 +462,58 @@ class KioskScanner(tb.Frame):
         self.status.config(text="Scanner stopped.", bootstyle="secondary")
         self.video_label.config(image="")
         self.logger.info("Scanner stopped.")
+
+
+# Late Check IN dialog
+class LateCheckinDialog(tb.Toplevel):
+    def __init__(self, parent, on_submit=None):
+        super().__init__(parent)
+        self.title("Late Check-IN")
+        self.resizable(False, False)
+        self.transient(parent)       # keep on top of parent
+        self.grab_set()              # modal: block parent input
+        self.on_submit = on_submit
+
+        frm = tb.Frame(self, padding=12)
+        frm.pack(fill="both", expand=True)
+
+        tb.Label(frm, text="Roll No").grid(row=0, column=0, sticky="w", pady=(0,6))
+        self.roll_entry = tb.Entry(frm)
+        self.roll_entry.grid(row=0, column=1, sticky="ew", padx=(8,0), pady=(0,6))
+
+        tb.Label(frm, text="Reason (brief)").grid(row=1, column=0, sticky="nw", pady=(0,6))
+        self.reason_text = tb.Text(frm, height=5, width=30)
+        self.reason_text.grid(row=1, column=1, sticky="ew", padx=(8,0), pady=(0,6))
+
+        # Buttons
+        btns = tb.Frame(frm)
+        btns.grid(row=2, column=0, columnspan=2, pady=(8,0), sticky="e")
+        tb.Button(btns, text="Cancel", command=self._on_cancel, bootstyle="secondary-outline").pack(side="right", padx=(6,0))
+        tb.Button(btns, text="Submit", command=self._on_submit, bootstyle="success").pack(side="right")
+
+        frm.columnconfigure(1, weight=1)
+        # focus
+        self.roll_entry.focus_set()
+
+    def _on_cancel(self):
+        self.grab_release()
+        self.destroy()
+
+    def _on_submit(self):
+        roll = self.roll_entry.get().strip()
+        reason = self.reason_text.get("1.0", "end").strip()
+        if not roll:
+            messagebox.showwarning("Validation", "Please enter roll number.")
+            return
+        if not reason:
+            messagebox.showwarning("Validation", "Please enter reason.")
+            return
+        # pass to callback if provided (callback should persist to DB)
+        if callable(self.on_submit):
+            try:
+                self.on_submit(roll, reason)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to submit: {e}")
+                return
+        self.grab_release()
+        self.destroy()
