@@ -49,6 +49,7 @@ class KioskScanner(tb.Frame):
         self.recent_scans = {}         # payload -> last_seen_ts (float)
         self.last_overlay = None       # dict with keys: rect, msg, color, ts, ttl
         self.overlay_ttl = 1.5         # seconds to display overlay after a scan
+        self.cam_running = True
 
         tb.Label(self, text="Kiosk Scanner", font=("Segoe UI", 16)).pack(pady=8)
         info = tb.Label(self, text=f"Session: {getattr(session_row, 'id', 'N/A')}  Subject: {getattr(getattr(session_row, 'subject', None), 'title', '')}")
@@ -65,33 +66,56 @@ class KioskScanner(tb.Frame):
         # control buttons
         btns = tb.Frame(self)
         btns.pack(fill="x", padx=8, pady=6)
-        tb.Button(btns, text="Stop Scanner", bootstyle="danger", command=self.stop).pack(side="right")
-        tb.Button(btns, text="Manual Sync (DB)", bootstyle="secondary", command=self._manual_sync).pack(side="left")
+        self.startstopbtn = tb.Button(
+            btns,
+            text="Stop Scanner",
+            bootstyle="danger",
+            command=self._start_or_stop
+        )
+        self.startstopbtn.pack(side="right")
+        tb.Button(btns, text="Check IN Late", bootstyle="secondary", command=self._late_checkin).pack(side="left")
 
         # start camera thread
         self._start_camera()
 
-    def _manual_sync(self):
-        messagebox.showinfo("Info", "Manual sync placeholder. Implement offline sync logic here.")
+    def _late_checkin(self):
+        messagebox.showinfo("Info", "Late CheckIN placeholder.")
+    
+    def _start_or_stop(self):
+        if self.cam_running:
+            self.cam_running = False
+            self._stop_camera()
+            self.startstopbtn.configure(
+                text = "Start Scanner",
+                bootstyle = "success"
+            )
+        else:
+            self.cam_running = True
+            self._start_camera()
+            self.startstopbtn.configure(
+                text = "Stop Scanner",
+                bootstyle = "danger"
+            )
 
     def _start_camera(self):
-        self._stop_event.clear()
-        try:
-            self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # remove backend flag on linux if needed
-            if not self.cap or not self.cap.isOpened():
-                # try without flag
-                self.cap = cv2.VideoCapture(0)
-            if not self.cap.isOpened():
-                self.status.config(text="Failed to open camera.", bootstyle="danger")
-                self.logger.error("Failed to open camera.")
-                return
-            self.status.config(text="Camera opened. Scanning...", bootstyle="success")
-            self.logger.info("Camera opened successfully. Scanning started.")
-            self.reader_thread = Thread(target=self._camera_loop, daemon=True)
-            self.reader_thread.start()
-        except Exception as e:
-            self.status.config(text=f"Camera error: {e}", bootstyle="danger")
-            self.logger.error(f"Camera error: {e}")
+        if self.cam_running:
+            self._stop_event.clear()
+            try:
+                self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # remove backend flag on linux if needed
+                if not self.cap or not self.cap.isOpened():
+                    # try without flag
+                    self.cap = cv2.VideoCapture(0)
+                if not self.cap.isOpened():
+                    self.status.config(text="Failed to open camera.", bootstyle="danger")
+                    self.logger.error("Failed to open camera.")
+                    return
+                self.status.config(text="Camera opened. Scanning...", bootstyle="success")
+                self.logger.info("Camera opened successfully. Scanning started.")
+                self.reader_thread = Thread(target=self._camera_loop, daemon=True)
+                self.reader_thread.start()
+            except Exception as e:
+                self.status.config(text=f"Camera error: {e}", bootstyle="danger")
+                self.logger.error(f"Camera error: {e}")
 
     def _camera_loop(self):
         while not self._stop_event.is_set():
@@ -147,14 +171,6 @@ class KioskScanner(tb.Frame):
                         # For simplicity, let's just process it if found
                         self.logger.debug(f"cv2 detected: {data}")
                         self._handle_scan(data, None)
-
-                    # !!!!!!!!!!!!!!!!!!!!!!!!!!temporary else block, remove immediately after fixing QRScanner!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    else:
-                        data = "25MCA002,2531,ABHAJ KHAN"
-                        self.logger.debug(f"cv2 not Detected!! using Hard Coded Data for completing workflow: {data}")
-                        self._handle_scan(data, None)
-                    # !!!!!!!!!!!!!!!!!!!!!!!!!!temporary else block, remove immediately after fixing QRScanner!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                
                 except Exception as e:
                     self.logger.error(f"cv2 detection error: {e}")
 
@@ -319,7 +335,7 @@ class KioskScanner(tb.Frame):
         finally:
             db.close()
 
-    def stop(self):
+    def _stop_camera(self):
         """Stop camera & thread"""
         self._stop_event.set()
         # ensure capture released
@@ -329,4 +345,5 @@ class KioskScanner(tb.Frame):
             except Exception:
                 pass
         self.status.config(text="Scanner stopped.", bootstyle="secondary")
+        self.video_label.config(image="")
         self.logger.info("Scanner stopped.")
