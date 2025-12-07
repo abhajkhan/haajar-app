@@ -30,7 +30,7 @@ class CreateSessionTab(tb.Frame):
         finally:
             db.close()
 
-        tb.Label(self, text="Create New Session", font=("Segoe UI", 16)).pack(pady=(12, 8))
+        tb.Label(self, text="Create New Session", font=("Segoe UI", 16, "bold"), bootstyle="primary").pack(pady=(12, 8))
 
         form = tb.Frame(self)
         form.pack(padx=16, pady=8, fill="x", expand=True)

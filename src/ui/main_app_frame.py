@@ -1,6 +1,7 @@
 import ttkbootstrap as tb
 from ui.sidebar import Sidebar
 from ui.home_page import HomePage
+from ui.view_sessions import ViewSessionsTab
 from ui.view_registry import ViewRegistryTab
 from ui.create_session import CreateSessionTab
 from ui.kiosk_scanner import KioskScanner
@@ -17,6 +18,7 @@ class MainAppFrame(tb.Frame):
         self.tabs = {
             TAB_HOME: HomePage(self.content_area, on_navigate=self.switch_tab),
             TAB_CREATE_SESSION: CreateSessionTab(self.content_area,on_create=self._on_session_created),
+            TAB_VIEW_SESSIONS: ViewSessionsTab(self.content_area, on_navigate=self.switch_tab),
             TAB_VIEW_REGISTRY: ViewRegistryTab(self.content_area),
             # kiosk_scanner tab created lazily when session is created
         }
@@ -35,7 +37,7 @@ class MainAppFrame(tb.Frame):
         # switch
         self.switch_tab(TAB_KIOSK_SCANNER)
 
-    def switch_tab(self, tab_name):
+    def switch_tab(self, tab_name, **kwargs):
         if self.active_tab:
             try:
                 # if kiosk scanner, ensure it stops camera when hidden
@@ -44,5 +46,17 @@ class MainAppFrame(tb.Frame):
             except Exception:
                 pass
             self.active_tab.pack_forget()
+        
+        # Handle lazy creation or update of KioskScanner
+        if tab_name == TAB_KIOSK_SCANNER:
+            session_row = kwargs.get('session_row')
+            if TAB_KIOSK_SCANNER not in self.tabs:
+                if session_row:
+                    self.tabs[TAB_KIOSK_SCANNER] = KioskScanner(self.content_area, session_row=session_row)
+            else:
+                # If it exists, update the session
+                if session_row:
+                    self.tabs[TAB_KIOSK_SCANNER].set_session(session_row)
+        
         self.active_tab = self.tabs[tab_name]
         self.active_tab.pack(fill="both", expand=True)

@@ -79,9 +79,8 @@ class KioskScanner(tb.Frame):
         self._mode_updater_running = True
         self._schedule_mode_update()
 
-        tb.Label(self, text="Kiosk Scanner", font=("Segoe UI", 16)).pack(pady=8)
-        info = tb.Label(self, text=f"Session: {getattr(session_row, 'id', 'N/A')}  Subject: {getattr(getattr(session_row, 'subject', None), 'title', '')}")
-        info.pack()
+        self.info_label = tb.Label(self, text=f"Session: {getattr(session_row, 'id', 'N/A')}  Subject: {getattr(getattr(session_row, 'subject', None), 'title', '')}")
+        self.info_label.pack()
 
         # video display
         self.video_label = tb.Label(self)
@@ -105,6 +104,29 @@ class KioskScanner(tb.Frame):
 
         # start camera thread
         self._start_camera()
+
+    def set_session(self, session_row):
+        """Update the scanner to work with a new session."""
+        self.session_row = session_row
+        self.session_start_time = getattr(self.session_row, 'start_time', None)
+        self.session_end_time = getattr(self.session_row, 'end_time', None)
+        self.session_date = getattr(self.session_row, 'date', None)
+        
+        if self.session_start_time:
+            self.session_start_datetime = datetime.combine(self.session_date, self.session_start_time)
+            self.session_end_datetime = datetime.combine(self.session_date, self.session_end_time)
+        
+        # Re-evaluate checkin time
+        if datetime.now() > self.session_start_datetime + self.checkout_delay:
+            self.is_checkin_time = False
+        else:
+            self.is_checkin_time = True
+            
+        # Update UI info
+        if hasattr(self, 'info_label'):
+            self.info_label.configure(text=f"Session: {getattr(session_row, 'id', 'N/A')}  Subject: {getattr(getattr(session_row, 'subject', None), 'title', '')}")
+        
+        self._compute_cutoff_datetime()
 
     def _compute_cutoff_datetime(self):
         """
