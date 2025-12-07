@@ -15,7 +15,6 @@ from datetime import date
 class ViewRegistryTab(tb.Frame):
     def __init__(self, master, **kw):
         super().__init__(master, **kw)
-        self.pack(fill=BOTH, expand=YES)
         
         # Variables
         self.faculty_var = tb.StringVar()

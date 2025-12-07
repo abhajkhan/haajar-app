@@ -1,5 +1,6 @@
 import ttkbootstrap as tb
 from ui.sidebar import Sidebar
+from ui.home_page import HomePage
 from ui.view_registry import ViewRegistryTab
 from ui.create_session import CreateSessionTab
 from ui.kiosk_scanner import KioskScanner
@@ -14,12 +15,14 @@ class MainAppFrame(tb.Frame):
         self.content_area.pack(side="right", expand=True, fill="both")
 
         self.tabs = {
+            TAB_HOME: HomePage(self.content_area, on_navigate=self.switch_tab),
             TAB_CREATE_SESSION: CreateSessionTab(self.content_area,on_create=self._on_session_created),
             TAB_VIEW_REGISTRY: ViewRegistryTab(self.content_area),
             # kiosk_scanner tab created lazily when session is created
         }
 
         self.active_tab = None
+        self.switch_tab(TAB_HOME)
 
     def _on_session_created(self, session_row):
         """
