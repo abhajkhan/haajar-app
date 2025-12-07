@@ -1,4 +1,3 @@
-# src/ui/kiosk_scanner.py
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from tkinter import messagebox
@@ -7,11 +6,11 @@ from datetime import datetime, timedelta
 import time
 import platform
 try:
-    import winsound  # Windows beep
+    import winsound
 except Exception:
     winsound = None
 try:
-    import simpleaudio as sa  # cross-platform small library (optional)
+    import simpleaudio as sa 
 except Exception:
     sa = None
 
@@ -20,12 +19,10 @@ import cv2
 from pyzbar import pyzbar
 from PIL import Image, ImageTk
 
-# DB imports - adjust names to your project
 try:
     from db import SessionLocal
     from models import Registry as RegistryModel, Student as StudentModel, Session as SessionModel
 except Exception:
-    from ..db import SessionLocal
     from ..db import SessionLocal
     from ..models import Registry as RegistryModel, Student as StudentModel, Session as SessionModel
 
@@ -475,7 +472,6 @@ class KioskScanner(tb.Frame):
     def _stop_camera(self):
         """Stop camera & thread"""
         self._stop_event.set()
-        # ensure capture released
         if self.cap and self.cap.isOpened():
             try:
                 self.cap.release()
@@ -492,8 +488,8 @@ class LateCheckinDialog(tb.Toplevel):
         super().__init__(parent)
         self.title("Late Check-IN")
         self.resizable(False, False)
-        self.transient(parent)       # keep on top of parent
-        self.grab_set()              # modal: block parent input
+        self.transient(parent)       
+        self.grab_set()              
         self.on_submit = on_submit
 
         frm = tb.Frame(self, padding=12)
@@ -530,7 +526,6 @@ class LateCheckinDialog(tb.Toplevel):
         if not reason:
             messagebox.showwarning("Validation", "Please enter reason.")
             return
-        # pass to callback if provided (callback should persist to DB)
         if callable(self.on_submit):
             try:
                 self.on_submit(roll, reason)

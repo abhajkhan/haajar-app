@@ -1,21 +1,14 @@
 from ttkbootstrap import Window
 from ui.login import LoginFrame
 from ui.main_app_frame import MainAppFrame
-from db import Base, engine  # ← IMPORT YOUR DB ENGINE + BASE
-import models  # ← IMPORTANT: ensures all models are registered
+from db import Base, engine
+import models
 
 def main():
-
-    # -------------------------------------
-    # CREATE DATABASE TABLES ON STARTUP
-    # -------------------------------------
     print("Checking & creating tables if needed...")
     Base.metadata.create_all(engine)
     print("Database Ready!")
 
-    # -------------------------------------
-    # TKINTER GUI STARTS BELOW
-    # -------------------------------------
     app = Window(title="Haajar Lab Registry", themename="superhero", size=(1024, 720))
 
     def redirect_to_home():
