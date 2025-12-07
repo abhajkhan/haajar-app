@@ -8,18 +8,19 @@ from ui.kiosk_scanner import KioskScanner
 from constants import *
 
 class MainAppFrame(tb.Frame):
-    def __init__(self, master, **kw):
+    def __init__(self, master, current_user, **kw):
         super().__init__(master, **kw)
+        self.current_user = current_user
 
         self.sidebar = Sidebar(self, self.switch_tab)
         self.content_area = tb.Frame(self)
         self.content_area.pack(side="right", expand=True, fill="both")
 
         self.tabs = {
-            TAB_HOME: HomePage(self.content_area, on_navigate=self.switch_tab),
-            TAB_CREATE_SESSION: CreateSessionTab(self.content_area,on_create=self._on_session_created),
-            TAB_VIEW_SESSIONS: ViewSessionsTab(self.content_area, on_navigate=self.switch_tab),
-            TAB_VIEW_REGISTRY: ViewRegistryTab(self.content_area),
+            TAB_HOME: HomePage(self.content_area, on_navigate=self.switch_tab, current_user=self.current_user),
+            TAB_CREATE_SESSION: CreateSessionTab(self.content_area, on_create=self._on_session_created, current_user=self.current_user),
+            TAB_VIEW_SESSIONS: ViewSessionsTab(self.content_area, on_navigate=self.switch_tab, current_user=self.current_user),
+            TAB_VIEW_REGISTRY: ViewRegistryTab(self.content_area, current_user=self.current_user),
             # kiosk_scanner tab created lazily when session is created
         }
 

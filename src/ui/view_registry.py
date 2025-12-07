@@ -13,8 +13,9 @@ from models import Registry, Session, Student, Subject, Faculty
 from datetime import date
 
 class ViewRegistryTab(tb.Frame):
-    def __init__(self, master, **kw):
+    def __init__(self, master, current_user=None, **kw):
         super().__init__(master, **kw)
+        self.current_user = current_user
         
         # Variables
         self.faculty_var = tb.StringVar()
@@ -94,8 +95,8 @@ class ViewRegistryTab(tb.Frame):
     def load_filter_data(self):
         session = SessionLocal()
         try:
-            faculties = session.query(Faculty).all()
-            subjects = session.query(Subject).all()
+            faculties = session.query(Faculty).filter(Faculty.user_id == self.current_user.id).all()
+            subjects = session.query(Subject).filter(Subject.user_id == self.current_user.id).all()
             
             self.faculty_map = {f.name: f.id for f in faculties}
             self.subject_map = {s.title: s.id for s in subjects}
@@ -110,6 +111,7 @@ class ViewRegistryTab(tb.Frame):
         try:
             query = session.query(Registry, Session, Student, Subject, Faculty)\
                 .join(Session, Registry.session_id == Session.id)\
+                .filter(Session.user_id == self.current_user.id)\
                 .join(Student, Registry.student_id == Student.id)\
                 .join(Subject, Session.subject_id == Subject.id)\
                 .join(Faculty, Session.faculty_id == Faculty.id)
@@ -131,7 +133,7 @@ class ViewRegistryTab(tb.Frame):
                 # But scalar_subquery returns a query object, not result.
                 
                 # Let's try a different approach for default: get the latest session object first
-                latest_session = session.query(Session).order_by(desc(Session.date), desc(Session.start_time)).first()
+                latest_session = session.query(Session).filter(Session.user_id == self.current_user.id).order_by(desc(Session.date), desc(Session.start_time)).first()
                 if latest_session:
                     query = query.filter(Session.id == latest_session.id)
                 else:

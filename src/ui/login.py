@@ -1,5 +1,8 @@
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
+from ttkbootstrap.dialogs import Messagebox
+from db import SessionLocal
+from models import User
 
 class LoginFrame(tb.Frame):
     def __init__(self, master, redirect_to_home, **kw):
@@ -30,6 +33,25 @@ class LoginFrame(tb.Frame):
     def handle_login(self):
         email = self.email_entry.get().strip()
         pwd = self.password_entry.get().strip()
-        print("Email:", email)
-        print("Password:", pwd)
-        self.redirect_to_home()
+        
+        if not email or email == "Email ID":
+            Messagebox.show_error("Please enter your email.", "Validation Error")
+            return
+        if not pwd or pwd == "Password":
+            Messagebox.show_error("Please enter your password.", "Validation Error")
+            return
+
+        session = SessionLocal()
+        try:
+            # Simple plain text password check as per plan
+            user = session.query(User).filter(User.department_email == email, User.password == pwd).first()
+            
+            if user:
+                # Login success
+                self.redirect_to_home(user)
+            else:
+                Messagebox.show_error("Invalid email or password.", "Login Failed")
+        except Exception as e:
+            Messagebox.show_error(f"Database error: {e}", "Error")
+        finally:
+            session.close()

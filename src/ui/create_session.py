@@ -10,7 +10,7 @@ except Exception as e:
     print("!!Exception in importing SessionLocal from db.py", e)
 
 class CreateSessionTab(tb.Frame):
-    def __init__(self, master, on_create=None, **kw):
+    def __init__(self, master, on_create=None, current_user=None, **kw):
         """
         subjects: optional list of subject titles (strings) — used for Combobox.
         faculties: optional list of faculty names.
@@ -18,11 +18,13 @@ class CreateSessionTab(tb.Frame):
         """
         super().__init__(master, **kw)
         self.on_create = on_create
+        self.current_user = current_user
 
         try:
             db = SessionLocal()
-            self.subjects = db.query(SubjectModel).all() or []
-            self.faculties = db.query(FacultyModel).all() or []
+            # Filter by current user
+            self.subjects = db.query(SubjectModel).filter(SubjectModel.user_id == self.current_user.id).all() or []
+            self.faculties = db.query(FacultyModel).filter(FacultyModel.user_id == self.current_user.id).all() or []
         except Exception as e:
             print("Exception in fetching sub and fac: ",e)
             self.subjects = []
@@ -169,7 +171,8 @@ class CreateSessionTab(tb.Frame):
                 start_time=start_dt.time(),
                 end_time=end_dt.time(),
                 is_active=True,
-                remarks=remarks
+                remarks=remarks,
+                user_id=self.current_user.id
             )
             db.add(new_session)
             db.commit()

@@ -11,14 +11,13 @@ def main():
 
     app = Window(title="Haajar Lab Registry", themename="superhero", size=(1024, 720))
 
-    def redirect_to_home():
+    def redirect_to_home(user):
         login_frame.pack_forget()
+        main_frame = MainAppFrame(app, current_user=user)
         main_frame.pack(fill="both", expand=True)
 
     login_frame = LoginFrame(app, redirect_to_home)
     login_frame.pack(fill="both", expand=True)
-
-    main_frame = MainAppFrame(app)
 
     app.mainloop()
 

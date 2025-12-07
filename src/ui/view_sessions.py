@@ -9,9 +9,10 @@ from datetime import date
 from constants import TAB_KIOSK_SCANNER
 
 class ViewSessionsTab(tb.Frame):
-    def __init__(self, master, on_navigate, **kw):
+    def __init__(self, master, on_navigate, current_user=None, **kw):
         super().__init__(master, **kw)
         self.on_navigate = on_navigate
+        self.current_user = current_user
         
         # Variables
         self.faculty_var = tb.StringVar()
@@ -102,8 +103,8 @@ class ViewSessionsTab(tb.Frame):
     def load_filter_data(self):
         session = SessionLocal()
         try:
-            faculties = session.query(Faculty).all()
-            subjects = session.query(Subject).all()
+            faculties = session.query(Faculty).filter(Faculty.user_id == self.current_user.id).all()
+            subjects = session.query(Subject).filter(Subject.user_id == self.current_user.id).all()
             
             self.faculty_map = {f.name: f.id for f in faculties}
             self.subject_map = {s.title: s.id for s in subjects}
@@ -116,7 +117,7 @@ class ViewSessionsTab(tb.Frame):
     def fetch_sessions(self, filters=None):
         session = SessionLocal()
         try:
-            query = session.query(Session).join(Subject).join(Faculty).order_by(desc(Session.date), desc(Session.start_time))
+            query = session.query(Session).filter(Session.user_id == self.current_user.id).join(Subject).join(Faculty).order_by(desc(Session.date), desc(Session.start_time))
             
             if filters:
                 if 'start_date' in filters and filters['start_date']:

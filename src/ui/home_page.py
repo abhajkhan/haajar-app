@@ -7,9 +7,10 @@ from models import Student, Faculty, Session
 from constants import TAB_CREATE_SESSION
 
 class HomePage(tb.Frame):
-    def __init__(self, master, on_navigate, **kw):
+    def __init__(self, master, on_navigate, current_user, **kw):
         super().__init__(master, **kw)
         self.on_navigate = on_navigate
+        self.current_user = current_user
         
         # Main container with padding
         self.main_container = tb.Frame(self, padding=30)
@@ -31,6 +32,7 @@ class HomePage(tb.Frame):
         header_frame = tb.Frame(self.main_container)
         header_frame.pack(fill=X, pady=(0, 30))
         
+        dept_name = self.current_user.department_name if self.current_user else "Department"
         title = tb.Label(
             header_frame, 
             text="Welcome to Haajar Lab Registry", 
@@ -58,9 +60,10 @@ class HomePage(tb.Frame):
         
         try:
             with SQLSession(engine) as db:
-                student_count = db.query(func.count(Student.id)).scalar()
-                faculty_count = db.query(func.count(Faculty.id)).scalar()
-                session_count = db.query(func.count(Session.id)).scalar()
+                # Filter by current user
+                student_count = db.query(func.count(Student.id)).filter(Student.user_id == self.current_user.id).scalar()
+                faculty_count = db.query(func.count(Faculty.id)).filter(Faculty.user_id == self.current_user.id).scalar()
+                session_count = db.query(func.count(Session.id)).filter(Session.user_id == self.current_user.id).scalar()
         except Exception as e:
             print(f"Error fetching stats: {e}")
 
@@ -142,7 +145,7 @@ class HomePage(tb.Frame):
         # Fetch recent sessions
         try:
             with SQLSession(engine) as db:
-                recent_sessions = db.query(Session).order_by(desc(Session.date), desc(Session.start_time)).limit(5).all()
+                recent_sessions = db.query(Session).filter(Session.user_id == self.current_user.id).order_by(desc(Session.date), desc(Session.start_time)).limit(5).all()
                 
                 for s in recent_sessions:
                     status = "Active" if s.is_active else "Completed"

@@ -10,6 +10,9 @@ class Student(Base):
     roll_no = Column(String(50))
     admission_no = Column(String(50))
     dob = Column(Date)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    
+    user = relationship("User")
 
 
 class Subject(Base):
@@ -18,6 +21,9 @@ class Subject(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String(100))
     course_code = Column(String(50))
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+    user = relationship("User")
 
 
 class Faculty(Base):
@@ -27,6 +33,9 @@ class Faculty(Base):
     name = Column(String(100))
     faculty_no = Column(String(50))
     department = Column(String(100))
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+    user = relationship("User")
 
 
 class Session(Base):
@@ -40,9 +49,11 @@ class Session(Base):
     end_time = Column(Time)
     is_active = Column(Boolean)
     remarks = Column(String(200))
+    user_id = Column(Integer, ForeignKey("users.id"))
 
     subject = relationship("Subject")
     faculty = relationship("Faculty")
+    user = relationship("User")
 
 
 class Registry(Base):
