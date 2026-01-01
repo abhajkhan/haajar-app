@@ -59,8 +59,8 @@ The system is designed to work with existing hardware and does not require expen
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/your-username/haajar-itto.git
-   cd haajar-itto
+   git clone https://github.com/abhajkhan/haajar-app.git
+   cd haajar-app
    ```
 2. Create a virtual environment
    ```bash
